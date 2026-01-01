@@ -3,374 +3,295 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NEURAL_LINK // WORD_HACK</title>
+    <title>NEURAL_LINK // ONLINE</title>
     <link href="https://fonts.googleapis.com/css2?family=VT323&display=swap" rel="stylesheet">
     
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.1/firebase-database.js"></script>
+
     <style>
-        :root {
-            --bg-color: #050a14;
-            --terminal-bg: #0a0f0f;
-            --neon-main: #00f3ff; /* Голубой */
-            --neon-warn: #ff0055; /* Розовый/Красный */
-            --neon-success: #00ff41; /* Зеленый */
-            --scan-line: rgba(18, 16, 16, 0.5);
-            --blur-amount: 0.7px;
-        }
-
-        body {
-            background-color: var(--bg-color);
-            margin: 0;
-            height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            font-family: 'VT323', monospace;
-            overflow: hidden;
-            color: var(--neon-main);
-        }
-
-        /* --- CRT ЭФФЕКТЫ --- */
-        .crt-container {
-            position: relative;
-            width: 90%;
-            max-width: 800px;
-            height: 80vh;
-            background-color: var(--terminal-bg);
-            border: 2px solid var(--neon-main);
-            border-radius: 20px;
-            box-shadow: 0 0 20px var(--neon-main), inset 0 0 40px rgba(0, 243, 255, 0.2);
-            padding: 20px;
-            overflow: hidden;
-            display: flex;
-            flex-direction: column;
-        }
-
-        /* Сканирующие линии (Scanlines) */
-        .crt-overlay {
-            position: absolute;
-            top: 0; left: 0; right: 0; bottom: 0;
-            background: linear-gradient(
-                to bottom,
-                rgba(255,255,255,0),
-                rgba(255,255,255,0) 50%,
-                rgba(0,0,0,0.2) 50%,
-                rgba(0,0,0,0.2)
-            );
-            background-size: 100% 4px;
-            pointer-events: none;
-            z-index: 10;
-            animation: flicker 0.15s infinite;
-        }
-
-        /* Эффект выгнутого экрана и виньетка */
-        .crt-container::before {
-            content: " ";
-            display: block;
-            position: absolute;
-            top: 0; left: 0; bottom: 0; right: 0;
-            background: radial-gradient(circle, rgba(0,0,0,0) 60%, rgba(0,0,0,0.6) 100%);
-            z-index: 9;
-            pointer-events: none;
-        }
-
-        /* Свечение текста и размытость */
-        .glow-text {
-            text-shadow: 0 0 5px var(--neon-main), 0 0 10px var(--neon-main);
-            filter: blur(var(--blur-amount));
-            letter-spacing: 2px;
-        }
-        
+        /* (СТИЛИ ТЕ ЖЕ, ЧТО БЫЛИ РАНЬШЕ - ОСТАВЛЯЕМ БЕЗ ИЗМЕНЕНИЙ) */
+        :root { --bg-color: #050a14; --terminal-bg: #0a0f0f; --neon-main: #00f3ff; --neon-warn: #ff0055; --neon-success: #00ff41; --blur-amount: 0.7px; }
+        body { background-color: var(--bg-color); margin: 0; height: 100vh; display: flex; justify-content: center; align-items: center; font-family: 'VT323', monospace; overflow: hidden; color: var(--neon-main); }
+        .crt-container { position: relative; width: 90%; max-width: 800px; height: 80vh; background-color: var(--terminal-bg); border: 2px solid var(--neon-main); border-radius: 20px; box-shadow: 0 0 20px var(--neon-main); padding: 20px; display: flex; flex-direction: column; }
+        .crt-overlay { position: absolute; top: 0; left: 0; right: 0; bottom: 0; background: linear-gradient(rgba(18,16,16,0) 50%, rgba(0,0,0,0.25) 50%); background-size: 100% 4px; pointer-events: none; z-index: 10; }
+        .glow-text { text-shadow: 0 0 5px var(--neon-main); filter: blur(var(--blur-amount)); }
         .text-warn { color: var(--neon-warn); text-shadow: 0 0 5px var(--neon-warn); }
         .text-success { color: var(--neon-success); text-shadow: 0 0 5px var(--neon-success); }
-
-        /* --- ИНТЕРФЕЙС --- */
-        
-        /* Экраны (Меню / Игра) */
         .screen { display: none; height: 100%; flex-direction: column; z-index: 5; }
         .screen.active { display: flex; }
-
-        h1 { font-size: 3rem; margin: 0 0 20px 0; text-align: center; text-transform: uppercase; }
-
-        /* Кнопки и инпуты */
-        .cyber-input {
-            background: transparent;
-            border: none;
-            border-bottom: 2px solid var(--neon-main);
-            color: var(--neon-main);
-            font-family: 'VT323', monospace;
-            font-size: 1.5rem;
-            width: 100%;
-            outline: none;
-            text-align: center;
-            margin-bottom: 20px;
-            text-transform: uppercase;
-        }
-
-        .cyber-btn {
-            background: transparent;
-            border: 1px solid var(--neon-main);
-            color: var(--neon-main);
-            padding: 10px 20px;
-            font-family: 'VT323', monospace;
-            font-size: 1.2rem;
-            cursor: pointer;
-            transition: 0.3s;
-            text-transform: uppercase;
-            box-shadow: 0 0 5px var(--neon-main);
-            margin: 5px;
-        }
-
-        .cyber-btn:hover {
-            background: var(--neon-main);
-            color: #000;
-            box-shadow: 0 0 20px var(--neon-main);
-        }
-
-        /* Игровой лог (Терминал) */
-        #game-log {
-            flex-grow: 1;
-            border: 1px solid rgba(0, 243, 255, 0.3);
-            padding: 10px;
-            overflow-y: auto;
-            margin-bottom: 10px;
-            font-size: 1.2rem;
-            background: rgba(0,0,0,0.3);
-        }
-        
-        .log-entry { margin-bottom: 5px; display: block; }
-        
-        .game-header {
-            display: flex;
-            justify-content: space-between;
-            font-size: 1.2rem;
-            border-bottom: 1px solid var(--neon-main);
-            padding-bottom: 10px;
-            margin-bottom: 10px;
-        }
-
-        /* Анимации */
-        @keyframes flicker {
-            0% { opacity: 0.9; }
-            5% { opacity: 0.8; }
-            10% { opacity: 0.9; }
-            100% { opacity: 0.9; }
-        }
-
-        /* Скроллбар */
-        ::-webkit-scrollbar { width: 8px; }
-        ::-webkit-scrollbar-thumb { background: var(--neon-main); }
-        ::-webkit-scrollbar-track { background: #000; }
-
+        h1 { text-align: center; }
+        .cyber-input { background: transparent; border: none; border-bottom: 2px solid var(--neon-main); color: var(--neon-main); font-family: 'VT323', monospace; font-size: 1.5rem; width: 100%; outline: none; text-align: center; margin-bottom: 20px; text-transform: uppercase; }
+        .cyber-btn { background: transparent; border: 1px solid var(--neon-main); color: var(--neon-main); padding: 10px; font-family: 'VT323', monospace; font-size: 1.2rem; cursor: pointer; text-transform: uppercase; margin: 5px; }
+        .cyber-btn:hover { background: var(--neon-main); color: #000; box-shadow: 0 0 15px var(--neon-main); }
+        #game-log { flex-grow: 1; border: 1px solid rgba(0, 243, 255, 0.3); padding: 10px; overflow-y: auto; margin-bottom: 10px; background: rgba(0,0,0,0.3); }
+        .game-header { display: flex; justify-content: space-between; border-bottom: 1px solid var(--neon-main); margin-bottom: 10px; }
     </style>
 </head>
 <body>
 
     <div class="crt-container">
-        <div class="crt-overlay"></div> <div id="menu-screen" class="screen active">
-            <h1 class="glow-text">NEURAL_LINK v2.0</h1>
-            <p style="text-align: center; margin-bottom: 30px;">СИСТЕМА СИНХРОНИЗАЦИИ СМЫСЛОВ</p>
-            
-            <div style="display: flex; flex-direction: column; align-items: center; width: 60%; margin: 0 auto;">
-                <input type="text" id="username" class="cyber-input" placeholder="ВВЕДИТЕ НИКНЕЙМ" maxlength="10">
-                
-                <div style="display: flex; gap: 10px; width: 100%;">
-                    <button class="cyber-btn" onclick="createLobby()" style="flex: 1;">СОЗДАТЬ УЗЕЛ</button>
-                    <button class="cyber-btn" onclick="showJoinInput()" style="flex: 1;">ПОДКЛЮЧИТЬСЯ</button>
-                </div>
-
-                <div id="join-area" style="display: none; width: 100%; margin-top: 20px;">
-                    <input type="text" id="lobby-code" class="cyber-input" placeholder="КОД ДОСТУПА (4 ЦИФРЫ)">
-                    <button class="cyber-btn" onclick="joinLobby()" style="width: 100%;">ВЗЛОМАТЬ</button>
-                </div>
+        <div class="crt-overlay"></div>
+        
+        <div id="menu-screen" class="screen active">
+            <h1 class="glow-text">NEURAL_LINK ONLINE</h1>
+            <input type="text" id="username" class="cyber-input" placeholder="ВВЕДИТЕ НИКНЕЙМ">
+            <div style="display: flex; gap: 10px; justify-content: center;">
+                <button class="cyber-btn" onclick="initCreateLobby()">СОЗДАТЬ УЗЕЛ</button>
+                <button class="cyber-btn" onclick="document.getElementById('join-area').style.display='block'">ПОДКЛЮЧИТЬСЯ</button>
+            </div>
+            <div id="join-area" style="display: none; margin-top: 20px; text-align: center;">
+                <input type="text" id="lobby-code-input" class="cyber-input" placeholder="КОД (4 ЦИФРЫ)">
+                <button class="cyber-btn" onclick="initJoinLobby()">ВЗЛОМАТЬ</button>
             </div>
         </div>
 
-        <div id="lobby-screen" class="screen" style="justify-content: center; align-items: center;">
-            <h2 class="glow-text">ОЖИДАНИЕ ПАРТНЕРА...</h2>
-            <div class="loader" style="margin: 20px;">[ . . . . . . . ]</div>
-            <p>КОД УЗЛА: <span id="display-code" class="text-success" style="font-size: 2rem;">----</span></p>
-            <button class="cyber-btn" onclick="startGame()">НАЧАТЬ ПРИНУДИТЕЛЬНО (DEMO)</button>
+        <div id="setup-screen" class="screen" style="justify-content: center; align-items: center;">
+            <h2 class="glow-text">УЗЕЛ СОЗДАН: <span id="display-code" class="text-success">----</span></h2>
+            <p>ОЖИДАНИЕ ВТОРОГО ИГРОКА...</p>
+            <div id="word-setup-area" style="display:none; width: 80%; text-align: center;">
+                <p class="text-success">ИГРОК ПОДКЛЮЧЕН!</p>
+                <p>ЗАГАДАЙТЕ СЛОВО ДЛЯ НЕГО:</p>
+                <input type="text" id="secret-word-input" class="cyber-input" placeholder="СЛОВО...">
+                <button class="cyber-btn" onclick="setWordAndStart()">ЗАПУСТИТЬ ПРОТОКОЛ</button>
+            </div>
+        </div>
+
+        <div id="waiting-screen" class="screen" style="justify-content: center; align-items: center;">
+            <h2 class="glow-text">СВЯЗЬ УСТАНОВЛЕНА</h2>
+            <p>ХОСТ ВЫБИРАЕТ ЦЕЛЬ...</p>
+            <div class="loader">[ . . . . . ]</div>
         </div>
 
         <div id="game-screen" class="screen">
             <div class="game-header glow-text">
-                <span id="player-role">РОЛЬ: ВЗЛОМЩИК</span>
+                <span id="vs-player">VS: ???</span>
                 <span>ОЧКИ: <span id="score-val">1000</span></span>
             </div>
-
-            <div id="game-log">
-                <div class="log-entry system">> СИСТЕМА ЗАГРУЖЕНА...</div>
-                <div class="log-entry system">> ЦЕЛЬ: УГАДАТЬ КЛЮЧЕВОЕ СЛОВО.</div>
-            </div>
-
+            <div id="game-log"></div>
             <div style="display: flex; gap: 10px;">
                 <input type="text" id="game-input" class="cyber-input" placeholder="ВВЕДИТЕ КОД..." style="margin-bottom: 0;">
-                <button class="cyber-btn" onclick="submitGuess()">SEND</button>
+                <button class="cyber-btn" onclick="makeGuess()">SEND</button>
             </div>
         </div>
-        
     </div>
 
-    ```
-
-### Часть 2: JavaScript (Логика и Геймплей)
-
-Этот код нужно вставить СРАЗУ ПОСЛЕ HTML кода выше (перед закрывающим тегом `</body>`).
-
-Он реализует:
-1.  Переключение экранов.
-2.  Алгоритм "близости" (здесь я использовал упрощенный алгоритм Левенштейна для сравнения букв, так как настоящий AI не влезет в один файл, но для эффекта игры этого достаточно).
-3.  Систему очков.
-4.  Вывод в стиле терминала.
-
-```html
     <script>
-        // --- ПЕРЕМЕННЫЕ СОСТОЯНИЯ ---
-        let currentScore = 1000;
-        const scorePenalty = 50;
-        let targetWord = ""; 
-        let isCreator = false;
+        // --- ВСТАВЬ СЮДА СВОЙ КОНФИГ ИЗ FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyCpX1V_alfcU1VxOSdMG01TN_AcFdfw4mU",
+            authDomain: "contecstonline.firebaseapp.com",
+            databaseURL: "https://contecstonline-default-rtdb.firebaseio.com",
+            projectId: "contecstonline",
+            storageBucket: "contecstonline.firebasestorage.app",
+            messagingSenderId: "1091016267262",
+            appId: "1:1091016267262:web:f26ac35123ba580bf75caf",
+        };
 
-        // Для примера - маленький словарь, чтобы проверить работу
-        const dictionary = ["МАТРИЦА", "КИБЕР", "СЕТЬ", "НЕОН", "ХАКЕР", "СИСТЕМА", "РОБОТ", "ДАННЫЕ"];
+        // Инициализация
+        if (!firebase.apps.length) {
+            firebase.initializeApp(firebaseConfig);
+        }
+        const db = firebase.database();
 
-        // --- ЛОГИКА ИНТЕРФЕЙСА ---
+        // --- ПЕРЕМЕННЫЕ ---
+        let myName = "";
+        let currentLobby = "";
+        let myRole = ""; // 'host' или 'guest'
+        let targetWord = "";
+        let score = 1000;
+
+        // --- ФУНКЦИИ МЕНЮ ---
 
         function showScreen(id) {
             document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
             document.getElementById(id).classList.add('active');
         }
 
-        function showJoinInput() {
-            document.getElementById('join-area').style.display = 'block';
-        }
+        function initCreateLobby() {
+            myName = document.getElementById('username').value || "Unknown";
+            const code = Math.floor(1000 + Math.random() * 9000).toString();
+            currentLobby = code;
+            myRole = 'host';
 
-        function createLobby() {
-            const name = document.getElementById('username').value;
-            if(!name) return alert("ОШИБКА: Введите имя");
-            
-            isCreator = true;
-            const code = Math.floor(1000 + Math.random() * 9000); // Случайный код
+            // Создаем запись в БД
+            db.ref('lobbies/' + code).set({
+                host: myName,
+                guest: "",
+                status: "waiting", // waiting, setup, playing
+                targetWord: "",
+                logs: {}
+            });
+
             document.getElementById('display-code').innerText = code;
-            showScreen('lobby-screen');
-            
-            // Симуляция подключения второго игрока через 3 секунды
-            logToConsole("СОЗДАНИЕ ЗАЩИЩЕННОГО КАНАЛА...", "system");
+            showScreen('setup-screen');
+            listenToLobby();
         }
 
-        function joinLobby() {
-            const code = document.getElementById('lobby-code').value;
-            if(code.length !== 4) return alert("ОШИБКА: Неверный формат кода");
-            isCreator = false;
-            startGame();
+        function initJoinLobby() {
+            myName = document.getElementById('username').value || "Unknown";
+            const code = document.getElementById('lobby-code-input').value;
+            currentLobby = code;
+            myRole = 'guest';
+
+            // Проверяем, существует ли комната
+            db.ref('lobbies/' + code).once('value', (snapshot) => {
+                if (snapshot.exists()) {
+                    // Присоединяемся
+                    db.ref('lobbies/' + code).update({
+                        guest: myName,
+                        status: "setup"
+                    });
+                    showScreen('waiting-screen');
+                    listenToLobby();
+                } else {
+                    alert("ОШИБКА: Узел не найден!");
+                }
+            });
         }
 
-        function startGame() {
-            showScreen('game-screen');
-            
-            // Если мы создатель - мы загадываем (в демо версии - компьютер загадывает)
-            // В реальности тут был бы выбор слова
-            targetWord = dictionary[Math.floor(Math.random() * dictionary.length)];
-            console.log("Цель (для теста): " + targetWord); // Подсказка в консоль браузера
+        // --- СЕТЕВАЯ МАГИЯ (СЛУШАЕМ ИЗМЕНЕНИЯ) ---
 
-            const roleEl = document.getElementById('player-role');
-            roleEl.innerText = "РОЛЬ: ВЗЛОМЩИК";
-            
-            addToLog("> СОЕДИНЕНИЕ УСТАНОВЛЕНО.", "success");
-            addToLog("> ОБЪЕКТ ЗАГАДАЛ СЛОВО ИЗ " + targetWord.length + " БУКВ.", "warn");
-            
-            document.getElementById('game-input').focus();
+        function listenToLobby() {
+            const lobbyRef = db.ref('lobbies/' + currentLobby);
+
+            lobbyRef.on('value', (snapshot) => {
+                const data = snapshot.val();
+                if (!data) return;
+
+                // 1. Если зашел гость, хост видит поле ввода слова
+                if (myRole === 'host' && data.status === 'setup' && document.getElementById('word-setup-area').style.display === 'none') {
+                    document.getElementById('word-setup-area').style.display = 'block';
+                }
+
+                // 2. Если игра началась
+                if (data.status === 'playing') {
+                    if (document.getElementById('game-screen').classList.contains('active') === false) {
+                        targetWord = data.targetWord; // Получаем слово с сервера
+                        showScreen('game-screen');
+                        document.getElementById('vs-player').innerText = "VS: " + (myRole === 'host' ? data.guest : data.host);
+                        addToLog("СИСТЕМА СИНХРОНИЗИРОВАНА.", "success");
+                        if(myRole === 'guest') {
+                            addToLog("ЗАДАЧА: УГАДАТЬ СЛОВО (ДЛИНА: " + targetWord.length + ")", "warn");
+                        } else {
+                            addToLog("ВЫ ЗАГАДАЛИ: " + targetWord, "warn");
+                            addToLog("ОЖИДАЙТЕ ДЕЙСТВИЙ ПРОТИВНИКА...", "system");
+                            document.getElementById('game-input').disabled = true; // Хост не пишет
+                        }
+                    }
+                }
+
+                // 3. Обновление логов (ходов)
+                updateLogs(data.logs);
+            });
         }
 
-        // --- ЛОГИКА ИГРЫ ---
+        // --- ЛОГИКА ХОСТА (ЗАГАДАТЬ СЛОВО) ---
+        function setWordAndStart() {
+            const word = document.getElementById('secret-word-input').value.trim().toUpperCase();
+            if (!word) return alert("Введите слово!");
 
-        function submitGuess() {
+            db.ref('lobbies/' + currentLobby).update({
+                targetWord: word,
+                status: "playing"
+            });
+        }
+
+        // --- ЛОГИКА ГОСТЯ (УГАДЫВАТЬ) ---
+        function makeGuess() {
+            if (myRole === 'host') return; // Хост не угадывает
+
             const input = document.getElementById('game-input');
             const guess = input.value.trim().toUpperCase();
-            
-            if(!guess) return;
+            if (!guess) return;
 
-            // 1. Проверка на победу
+            // Считаем близость (на клиенте для скорости)
+            const percent = calculateSimilarity(targetWord, guess);
+            
+            // Отправляем ход в БД
+            const newLogKey = db.ref('lobbies/' + currentLobby + '/logs').push().key;
+            db.ref('lobbies/' + currentLobby + '/logs/' + newLogKey).set({
+                player: myName,
+                text: guess,
+                similarity: percent,
+                timestamp: Date.now()
+            });
+
+            // Если угадал
             if (guess === targetWord) {
-                addToLog(`> ДОСТУП РАЗРЕШЕН! СЛОВО: "${guess}"`, "success");
-                addToLog(`> ИТОГОВЫЙ СЧЕТ: ${currentScore}`, "success");
-                input.disabled = true;
-                return;
+                // Можно добавить статус победы в БД
+                addToLog("ВЗЛОМ УСПЕШЕН!", "success");
             }
 
-            // 2. Расчет близости (Алгоритм схожести)
-            const similarity = calculateSimilarity(targetWord, guess);
-            
-            // 3. Вычитаем очки
-            currentScore -= scorePenalty;
-            if(currentScore < 0) currentScore = 0;
-            document.getElementById('score-val').innerText = currentScore;
-
-            // 4. Выводим результат
-            let statusColor = "text-warn"; // Красный (холодно)
-            if(similarity > 40) statusColor = "glow-text"; // Синий (тепло)
-            if(similarity > 70) statusColor = "text-success"; // Зеленый (горячо)
-
-            addToLog(`> ВВОД: ${guess} | ТОЧНОСТЬ: ${similarity}%`, statusColor);
-            
-            input.value = "";
-            input.focus();
+            input.value = '';
         }
 
-        // Простой алгоритм "похожести" (можно заменить на AI на бэкенде)
+        // Отображение новых сообщений
+        let lastLogCount = 0;
+        function updateLogs(logs) {
+            if (!logs) return;
+            const entries = Object.values(logs).sort((a, b) => a.timestamp - b.timestamp);
+            
+            // Если количество сообщений увеличилось, рендерим новые
+            if (entries.length > lastLogCount) {
+                const gameLog = document.getElementById('game-log');
+                gameLog.innerHTML = ""; // Очищаем и перерисовываем всё (простой вариант)
+                
+                entries.forEach(entry => {
+                    let colorClass = "text-warn";
+                    if (entry.similarity > 40) colorClass = "glow-text";
+                    if (entry.similarity > 70) colorClass = "text-success";
+                    if (entry.similarity === 100) colorClass = "text-success";
+
+                    const div = document.createElement('div');
+                    div.className = "log-entry";
+                    // Если это сообщение игрока
+                    if (entry.similarity !== undefined) {
+                        div.innerHTML = `<span style="color:#fff">${entry.player}:</span> <span class="${colorClass}">${entry.text} [${entry.similarity}%]</span>`;
+                    }
+                    gameLog.appendChild(div);
+                });
+                gameLog.scrollTop = gameLog.scrollHeight;
+                
+                // Штраф очков за каждую попытку
+                if (myRole === 'guest') {
+                    score = 1000 - (entries.length * 50);
+                    if (score < 0) score = 0;
+                    document.getElementById('score-val').innerText = score;
+                }
+                
+                lastLogCount = entries.length;
+            }
+        }
+
+        function addToLog(msg, type) {
+            const gameLog = document.getElementById('game-log');
+            const div = document.createElement('div');
+            div.innerText = "> " + msg;
+            if (type === 'warn') div.classList.add('text-warn');
+            if (type === 'success') div.classList.add('text-success');
+            gameLog.appendChild(div);
+        }
+
+        // (Функция Левенштейна осталась той же - скопируй её из прошлого ответа, если нужно, или я добавлю её сюда)
         function calculateSimilarity(s1, s2) {
-            let longer = s1;
-            let shorter = s2;
-            if (s1.length < s2.length) {
-                longer = s2;
-                shorter = s1;
-            }
-            const longerLength = longer.length;
-            if (longerLength === 0) return 100;
-            
-            // Вычисляем расстояние Левенштейна
-            const editDistance = levenshtein(s1, s2);
-            return Math.round(((longerLength - editDistance) / longerLength) * 100);
+            let longer = s1, shorter = s2;
+            if (s1.length < s2.length) { longer = s2; shorter = s1; }
+            if (longer.length === 0) return 100;
+            return Math.round(((longer.length - levenshtein(s1, s2)) / longer.length) * 100);
         }
-
         function levenshtein(a, b) {
             const matrix = [];
             for(let i=0; i<=b.length; i++) matrix[i] = [i];
             for(let j=0; j<=a.length; j++) matrix[0][j] = j;
-
             for(let i=1; i<=b.length; i++){
                 for(let j=1; j<=a.length; j++){
-                    if(b.charAt(i-1) == a.charAt(j-1)){
-                        matrix[i][j] = matrix[i-1][j-1];
-                    } else {
-                        matrix[i][j] = Math.min(
-                            matrix[i-1][j-1] + 1,
-                            matrix[i][j-1] + 1,
-                            matrix[i-1][j] + 1
-                        );
-                    }
+                    if(b.charAt(i-1) == a.charAt(j-1)) matrix[i][j] = matrix[i-1][j-1];
+                    else matrix[i][j] = Math.min(matrix[i-1][j-1]+1, matrix[i][j-1]+1, matrix[i-1][j]+1);
                 }
             }
             return matrix[b.length][a.length];
         }
-
-        function addToLog(text, type) {
-            const log = document.getElementById('game-log');
-            const entry = document.createElement('div');
-            entry.className = 'log-entry';
-            entry.innerText = text;
-            
-            if(type === 'warn') entry.classList.add('text-warn');
-            if(type === 'success') entry.classList.add('text-success');
-            
-            log.appendChild(entry);
-            log.scrollTop = log.scrollHeight; // Автопрокрутка вниз
-        }
-
-        // Обработка Enter в поле ввода
-        document.getElementById('game-input').addEventListener("keypress", function(event) {
-            if (event.key === "Enter") submitGuess();
-        });
 
     </script>
 </body>
